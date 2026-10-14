@@ -1,0 +1,993 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Relatório Técnico: Otimização de Dietas com Programação Linear & RuFaS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;600&family=Kalam:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --board: #f3f5f7;
+  --surface: #ffffff;
+  --edge: #d6dce2;
+  --ink: #1f2328;
+  --muted: #56606b;
+  --marker: #1c4fa0;
+  --marker-tint: #e8eef8;
+  --code: #eef2f5;
+  --warn: #8f3a12;
+  --warn-tint: #fbefe7;
+  --success: #1e7e34;
+  --success-tint: #eafaf1;
+  --purple: #6b21a8;
+  --purple-tint: #f3e8ff;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --board: #15181c;
+    --surface: #1c2025;
+    --edge: #2e353d;
+    --ink: #e3e7eb;
+    --muted: #9aa4ae;
+    --marker: #86a9ec;
+    --marker-tint: #1e2a3d;
+    --code: #20252b;
+    --warn: #f0a77f;
+    --warn-tint: #33241c;
+    --success: #5cd685;
+    --success-tint: #193022;
+    --purple: #c084fc;
+    --purple-tint: #2e1065;
+  }
+}
+
+:root[data-theme="dark"] {
+  --board: #15181c;
+  --surface: #1c2025;
+  --edge: #2e353d;
+  --ink: #e3e7eb;
+  --muted: #9aa4ae;
+  --marker: #86a9ec;
+  --marker-tint: #1e2a3d;
+  --code: #20252b;
+  --warn: #f0a77f;
+  --warn-tint: #33241c;
+  --success: #5cd685;
+  --success-tint: #193022;
+  --purple: #c084fc;
+  --purple-tint: #2e1065;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+
+body {
+  margin: 0;
+  background: var(--board);
+  color: var(--ink);
+  font: 17px/1.65 "Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+a { color: var(--marker); text-decoration: none; }
+a:hover { text-decoration: underline; }
+a:focus-visible, button:focus-visible { outline: 3px solid var(--marker); outline-offset: 2px; border-radius: 3px; }
+
+.wrap { max-width: 1200px; margin: 0 auto; padding: 0 1.25rem; }
+
+/* Top Control Bar */
+.top-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 0;
+  border-bottom: 1px solid var(--edge);
+}
+.theme-toggle {
+  background: var(--surface);
+  border: 1px solid var(--edge);
+  color: var(--ink);
+  padding: 0.4rem 0.8rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+header { padding: 1.5rem 0 1.5rem; }
+h1 {
+  font-family: "Kalam", "Comic Sans MS", cursive;
+  font-weight: 700;
+  font-size: clamp(2.1rem, 4.6vw, 3.2rem);
+  line-height: 1.1;
+  margin: 0 0 0.6rem;
+  max-width: 32ch;
+}
+.lede { color: var(--muted); max-width: 80ch; margin: 0 0 1.8rem; font-size: 1.08rem; }
+
+/* SVG Board Area */
+.board {
+  background: var(--surface);
+  border: 1px solid var(--edge);
+  border-bottom: 12px solid var(--edge);
+  border-radius: 12px;
+  padding: 1.2rem;
+  overflow-x: auto;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+.board svg { display: block; min-width: 900px; width: 100%; height: auto; }
+.board figcaption { color: var(--muted); font-size: 0.9rem; padding: 0.6rem 0.4rem 0; text-align: center; }
+.hand { font-family: "Kalam", "Comic Sans MS", cursive; }
+
+/* Color utilities for SVG */
+.s-ink { stroke: var(--ink); } .f-ink { fill: var(--ink); }
+.s-blue { stroke: var(--marker); } .f-blue { fill: var(--marker); }
+.s-warn { stroke: var(--warn); } .f-warn { fill: var(--warn); }
+.s-purple { stroke: var(--purple); } .f-purple { fill: var(--purple); }
+
+.grid { display: grid; grid-template-columns: 290px minmax(0, 1fr); gap: 2.5rem; padding: 2rem 0 5rem; }
+
+nav.toc { position: sticky; top: 1.2rem; align-self: start; font-size: 0.92rem; }
+nav.toc ol { list-style: none; margin: 0; padding: 0; counter-reset: s; }
+nav.toc li { counter-increment: s; margin: 0.2rem 0; }
+nav.toc a { display: flex; gap: 0.55rem; text-decoration: none; color: var(--ink); padding: 0.35rem 0.5rem; border-radius: 5px; }
+nav.toc a::before { content: counter(s); color: var(--marker); font-family: "Kalam", cursive; font-weight: 700; min-width: 1.4rem; }
+nav.toc a:hover { background: var(--marker-tint); }
+nav.toc .toc-title { font-family: "Kalam", cursive; font-size: 1.25rem; margin: 0 0 0.4rem 0.5rem; font-weight: 700; }
+
+article { max-width: 82ch; min-width: 0; }
+section { margin-bottom: 3.5rem; scroll-margin-top: 1.5rem; }
+
+h2 {
+  font-family: "Kalam", "Comic Sans MS", cursive;
+  font-weight: 700;
+  font-size: 2.05rem;
+  line-height: 1.15;
+  margin: 0 0 1rem;
+  display: inline-block;
+  position: relative;
+  padding-bottom: 0.35rem;
+}
+h2::after {
+  content: "";
+  position: absolute;
+  left: -0.2rem;
+  right: -0.6rem;
+  bottom: 0;
+  height: 3px;
+  background: var(--marker);
+  border-radius: 3px;
+  transform: rotate(-1deg);
+}
+
+h3 { font-size: 1.25rem; margin: 2rem 0 0.6rem; color: var(--ink); }
+h4 { font-size: 1.05rem; margin: 1.5rem 0 0.4rem; color: var(--ink); }
+
+p, li { max-width: 78ch; }
+ul, ol { padding-left: 1.4rem; }
+li { margin: 0.35rem 0; }
+
+blockquote { margin: 1rem 0; padding: 0.6rem 1.2rem; border-left: 4px solid var(--edge); color: var(--muted); font-style: italic; background: var(--code); border-radius: 0 6px 6px 0; }
+code { font-family: "JetBrains Mono", ui-monospace, Consolas, monospace; font-size: 0.88em; background: var(--code); padding: 0.15em 0.4em; border-radius: 4px; border: 1px solid var(--edge); }
+pre { font-family: "JetBrains Mono", monospace; background: var(--code); border: 1px solid var(--edge); border-radius: 8px; padding: 1.1rem; overflow-x: auto; font-size: 0.88rem; line-height: 1.5; margin: 1.2rem 0; }
+
+.note, .warn, .info, .purple-box { padding: 0.9rem 1.2rem; border-radius: 0 8px 8px 0; margin: 1.2rem 0; }
+.note { border-left: 4px solid var(--marker); background: var(--marker-tint); }
+.warn { border-left: 4px solid var(--warn); background: var(--warn-tint); }
+.info { border-left: 4px solid var(--success); background: var(--success-tint); }
+.purple-box { border-left: 4px solid var(--purple); background: var(--purple-tint); }
+
+.tbl { overflow-x: auto; margin: 1.2rem 0 1.8rem; border: 1px solid var(--edge); border-radius: 8px; background: var(--surface); box-shadow: 0 2px 6px rgba(0,0,0,0.03); }
+table { border-collapse: collapse; width: 100%; font-size: 0.93rem; }
+th, td { text-align: left; vertical-align: top; padding: 0.65rem 0.9rem; border-bottom: 1px solid var(--edge); }
+th { background: var(--code); font-weight: 700; color: var(--ink); }
+tr:last-child td { border-bottom: none; }
+
+/* Clean HTML & MathML Formula Styling */
+.formula-box {
+  background: var(--surface);
+  border: 1px solid var(--edge);
+  border-left: 4px solid var(--marker);
+  border-radius: 8px;
+  padding: 1.1rem 1.4rem;
+  margin: 1.2rem 0;
+  font-size: 1.08rem;
+  line-height: 1.8;
+  color: var(--ink);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.02);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: flex-start;
+  overflow-x: auto;
+}
+.formula-highlight { font-weight: 700; color: var(--marker); font-size: 1.15rem; }
+
+math {
+  font-family: "Atkinson Hyperlegible", "Cambria Math", "STIXTwoMath", serif;
+  font-size: 1.12em;
+}
+.m-var { font-style: italic; font-weight: 600; color: var(--ink); }
+.m-op { margin: 0 0.25rem; font-weight: 400; }
+.m-vec { font-weight: 700; font-style: normal; color: var(--marker); }
+
+@media (max-width: 900px) {
+  .grid { grid-template-columns: 1fr; gap: 1.5rem; }
+  nav.toc { position: static; background: var(--surface); border: 1px solid var(--edge); border-radius: 8px; padding: 1rem; }
+  h2 { font-size: 1.75rem; }
+}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <div class="top-bar">
+    <span style="font-family:'Kalam', cursive; font-weight:700; font-size:1.1rem; color:var(--marker);">UFG • EA / INF • Otimização Zootécnica</span>
+    <button class="theme-toggle" id="themeBtn" onclick="toggleTheme()" aria-label="Alternar tema">
+      <span>🌓</span> <span id="themeLabel">Alternar Tema</span>
+    </button>
+  </div>
+
+  <header>
+    <h1>Otimização Nutricional Animal via Programação Linear & RuFaS</h1>
+    <p class="lede">Manual Técnico e Acadêmico Completo sobre Formulação de Dietas de Custo Mínimo (LCR), Algoritmo Simplex em Espaços N-Dimensionais, Fisiologia do Ruminante e Arquitetura Computacional do Modelo Biofísico RuFaS. Elaborado com base nas aulas e diretrizes dos Profs. Dr. Noronha e Dr. Leandro Alexandre Freitas.</p>
+    
+    <figure class="board" style="margin:0">
+      <svg viewBox="0 0 1150 480" role="img" aria-labelledby="board-title">
+        <title id="board-title">Sintese Grafica do Quadro de Aula: Curva de Lactacao, Hierarquia Nutricional e Pipeline RuFaS</title>
+        <defs>
+          <marker id="arr-blue" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 1 1 L 9 5 L 1 9" fill="none" stroke="var(--marker)" stroke-width="2"/>
+          </marker>
+          <marker id="arr-warn" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 1 1 L 9 5 L 1 9" fill="none" stroke="var(--warn)" stroke-width="2"/>
+          </marker>
+          <marker id="arr-purple" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 1 1 L 9 5 L 1 9" fill="none" stroke="var(--purple)" stroke-width="2"/>
+          </marker>
+        </defs>
+
+        <!-- PAINEL 1: CURVAS DE LACTAÇÃO E PESO (DEL x KG) -->
+        <g transform="translate(10, 10)">
+          <rect x="10" y="10" width="540" height="440" rx="10" fill="var(--surface)" stroke="var(--edge)" stroke-width="2"/>
+          <text x="280" y="38" text-anchor="middle" class="hand f-blue" font-size="18" font-weight="700">Painel 1: Dinâmica da Lactação & Balanço Energético (DEL)</text>
+          
+          <line x1="60" y1="360" x2="510" y2="360" stroke="var(--ink)" stroke-width="2" marker-end="url(#arr-blue)"/>
+          <line x1="60" y1="360" x2="60" y2="60" stroke="var(--ink)" stroke-width="2" marker-end="url(#arr-blue)"/>
+          
+          <text x="510" y="390" text-anchor="end" class="hand f-ink" font-size="13">DEL (Dias em Lactação)</text>
+          <text x="25" y="65" text-anchor="middle" class="hand f-ink" font-size="13" transform="rotate(-90 25 65)">Produção Leite / Peso (kg)</text>
+          <text x="50" y="365" text-anchor="end" class="hand f-ink" font-size="12">0</text>
+          
+          <line x1="180" y1="360" x2="180" y2="90" stroke="var(--edge)" stroke-dasharray="4,4" stroke-width="1.5"/>
+          <text x="180" y="380" text-anchor="middle" class="hand f-warn" font-size="13" font-weight="700">130d - 150d (Pico CMS)</text>
+          
+          <text x="52" y="240" text-anchor="end" class="hand f-ink" font-size="12">35kg</text>
+          <line x1="55" y1="235" x2="510" y2="235" stroke="var(--edge)" stroke-dasharray="2,2" stroke-width="1"/>
+
+          <path d="M 60 240 C 100 100, 150 90, 180 110 C 260 160, 380 270, 500 320" fill="none" stroke="var(--marker)" stroke-width="3"/>
+          <text x="430" y="275" class="hand f-blue" font-size="13" font-weight="700">Multíparas</text>
+
+          <path d="M 60 260 C 110 130, 160 120, 190 140 C 270 190, 390 285, 500 330" fill="none" stroke="#2563eb" stroke-width="2.2"/>
+          <text x="430" y="300" class="hand" fill="#2563eb" font-size="12">Secundíparas</text>
+
+          <path d="M 60 280 C 120 190, 180 180, 220 190 C 310 210, 410 240, 500 270" fill="none" stroke="var(--purple)" stroke-width="2.5" stroke-dasharray="6,4"/>
+          <text x="430" y="240" class="hand f-purple" font-size="13" font-weight="700">Primíparas</text>
+
+          <path d="M 60 180 C 110 230, 160 260, 220 250 C 320 210, 420 160, 500 150" fill="none" stroke="var(--warn)" stroke-width="2.5" stroke-dasharray="3,3"/>
+          <text x="250" y="260" class="hand f-warn" font-size="12">Peso Vivo / Escore (BEN)</text>
+
+          <rect x="250" y="65" width="280" height="95" rx="6" fill="var(--marker-tint)" stroke="var(--marker)" stroke-width="1"/>
+          <text x="260" y="83" class="hand f-blue" font-size="13" font-weight="700">Parâmetros de Referência do Lote:</text>
+          <text x="260" y="101" class="hand f-ink" font-size="12">• 35 kg leite/dia | 3.2% Proteína | 4.0% Gordura</text>
+          <text x="260" y="119" class="hand f-ink" font-size="12">• 4.8% Lactose | 740 kg PV | 1000d Idade</text>
+          <text x="260" y="137" class="hand f-purple" font-size="12" font-weight="700">⇒ Modelos NASEM (2021) / NRC (2001)</text>
+        </g>
+
+        <!-- PAINEL 2: HIERARQUIA FISIOLÓGICA -->
+        <g transform="translate(570, 10)">
+          <rect x="10" y="10" width="250" height="440" rx="10" fill="var(--surface)" stroke="var(--edge)" stroke-width="2"/>
+          <text x="135" y="38" text-anchor="middle" class="hand f-warn" font-size="17" font-weight="700">Painel 2: Prioridades</text>
+          <text x="135" y="58" text-anchor="middle" class="hand f-ink" font-size="12">(Alocação de Nutrientes)</text>
+
+          <rect x="40" y="90" width="190" height="75" rx="6" fill="var(--purple-tint)" stroke="var(--purple)" stroke-width="2"/>
+          <text x="135" y="122" text-anchor="middle" class="hand f-purple" font-size="15" font-weight="700">3ª REPRODUÇÃO</text>
+          <text x="135" y="142" text-anchor="middle" class="hand f-ink" font-size="11">Cio, Gestação, Feto</text>
+
+          <path d="M 135 165 L 135 185" stroke="var(--ink)" stroke-width="2" marker-end="url(#arr-warn)"/>
+
+          <rect x="30" y="190" width="210" height="85" rx="6" fill="var(--warn-tint)" stroke="var(--warn)" stroke-width="2"/>
+          <text x="135" y="222" text-anchor="middle" class="hand f-warn" font-size="16" font-weight="700">2ª MANUTENÇÃO</text>
+          <text x="135" y="242" text-anchor="middle" class="hand f-ink" font-size="11">Metabolismo Basal, Vida</text>
+          <text x="135" y="258" text-anchor="middle" class="hand f-ink" font-size="11">Atividade & Respiratória</text>
+
+          <path d="M 135 275 L 135 295" stroke="var(--ink)" stroke-width="2" marker-end="url(#arr-warn)"/>
+
+          <rect x="20" y="300" width="230" height="110" rx="6" fill="var(--marker-tint)" stroke="var(--marker)" stroke-width="2"/>
+          <text x="135" y="335" text-anchor="middle" class="hand f-blue" font-size="17" font-weight="700">1ª LACTAÇÃO</text>
+          <text x="135" y="358" text-anchor="middle" class="hand f-ink" font-size="12">Síntese de Leite na Glândula</text>
+          <text x="135" y="376" text-anchor="middle" class="hand f-ink" font-size="12">Mamária (Prioridade Máxima)</text>
+          <text x="135" y="395" text-anchor="middle" class="hand f-warn" font-size="11" font-weight="700">★ Demanda de GLICOSE & NDT</text>
+        </g>
+
+        <!-- PAINEL 3: PIPELINE DE OTIMIZAÇÃO LCR & RuFaS -->
+        <g transform="translate(840, 10)">
+          <rect x="10" y="10" width="290" height="440" rx="10" fill="var(--surface)" stroke="var(--edge)" stroke-width="2"/>
+          <text x="155" y="38" text-anchor="middle" class="hand f-purple" font-size="17" font-weight="700">Painel 3: Pipeline RuFaS</text>
+
+          <rect x="30" y="70" width="250" height="65" rx="6" fill="var(--code)" stroke="var(--edge)" stroke-width="1.8"/>
+          <text x="155" y="95" text-anchor="middle" class="hand f-ink" font-size="14" font-weight="700">1. Matriz NASEM / Feeds</text>
+          <text x="155" y="115" text-anchor="middle" class="hand f-muted" font-size="11">Midwest_feed.json & NASEM.csv</text>
+
+          <path d="M 155 135 L 155 155" stroke="var(--marker)" stroke-width="2" marker-end="url(#arr-blue)"/>
+
+          <rect x="30" y="160" width="250" height="65" rx="6" fill="var(--marker-tint)" stroke="var(--marker)" stroke-width="1.8"/>
+          <text x="155" y="185" text-anchor="middle" class="hand f-blue" font-size="14" font-weight="700">2. Motor RationOptimizer</text>
+          <text x="155" y="205" text-anchor="middle" class="hand f-ink" font-size="11">SLSQP / Simplex & SciPy</text>
+
+          <path d="M 155 225 L 155 245" stroke="var(--marker)" stroke-width="2" marker-end="url(#arr-blue)"/>
+
+          <rect x="30" y="250" width="250" height="65" rx="6" fill="var(--warn-tint)" stroke="var(--warn)" stroke-width="1.8"/>
+          <text x="155" y="275" text-anchor="middle" class="hand f-warn" font-size="14" font-weight="700">3. Solução de Dieta Mínima</text>
+          <text x="155" y="295" text-anchor="middle" class="hand f-ink" font-size="11">Vetores x* em kg MS/dia</text>
+
+          <path d="M 155 315 L 155 335" stroke="var(--purple)" stroke-width="2" marker-end="url(#arr-purple)"/>
+
+          <rect x="30" y="340" width="250" height="90" rx="6" fill="var(--purple-tint)" stroke="var(--purple)" stroke-width="2"/>
+          <text x="155" y="365" text-anchor="middle" class="hand f-purple" font-size="14" font-weight="700">4. Módulos RuFaS Integrados</text>
+          <text x="155" y="385" text-anchor="middle" class="hand f-ink" font-size="11">• Emissão CH₄ / N-Uréico</text>
+          <text x="155" y="402" text-anchor="middle" class="hand f-ink" font-size="11">• Custo Diário: $5.15 / vaca</text>
+          <text x="155" y="419" text-anchor="middle" class="hand f-success" font-size="11" font-weight="700">IOFC Otimizado</text>
+        </g>
+      </svg>
+      <figcaption>Sintese unificada da dinamica zootecnica e do fluxo de otimizacao matematica do RuFaS discutidos em aula pelos Profs. Dr. Noronha e Dr. Leandro.</figcaption>
+    </figure>
+  </header>
+
+  <div class="grid">
+    <!-- Navigation Sidebar -->
+    <nav class="toc" aria-label="Sumário Técnico">
+      <p class="toc-title">Módulos do Relatório</p>
+      <ol>
+        <li><a href="#mod-1">Álgebra Linear & Espaços Vetoriais</a></li>
+        <li><a href="#mod-2">Formulação da Dieta de Custo Mínimo</a></li>
+        <li><a href="#mod-3">Biologia & Fisiologia do Ruminante</a></li>
+        <li><a href="#mod-4">Arquitetura Biofísica do RuFaS</a></li>
+        <li><a href="#mod-5">Encadeamento e Esquema JSON</a></li>
+        <li><a href="#mod-6">Algoritmo RationOptimizer & SciPy</a></li>
+        <li><a href="#mod-7">Guia Prático de Terminal Linux</a></li>
+        <li><a href="#mod-8">Análise do Estudo de Caso Resolvido</a></li>
+        <li><a href="#mod-9">Sensibilidade, Preço-Sombra & Dual</a></li>
+        <li><a href="#mod-10">Fronteira Tecnológica Neuro-Simplex</a></li>
+        <li><a href="#mod-11">Roteiro para Defesa Acadêmica</a></li>
+      </ol>
+    </nav>
+
+    <article>
+
+      <!-- MÓDULO 1 -->
+      <section id="mod-1">
+        <h2>1. Álgebra Linear, Espaços Vetoriais e Fundamentos Geometricos</h2>
+        <p>A formulação moderna do problema de custo mínimo de dietas para ruminantes baseia-se na teoria dos espaços vetoriais reais <strong>ℝ<sup>n</sup></strong>, desenvolvida nas aulas de Programação Linear ministradas pelo <strong>Prof. Dr. Noronha</strong>. A escolha de ingredientes e o atendimento de requisitos nutricionais traduzem-se em geometria convexa multidimensional.</p>
+
+        <h3>1.1 Espaço de Soluções e Combinação Linear de Ingredientes</h3>
+        <p>Seja <span class="m-var">n</span> o número de alimentos disponíveis (ex: milho moído, silagem de milho, farelo de soja, feno de alfafa, ureia) e <span class="m-var">m</span> o número de restrições nutricionais impostas (ex: Proteína Bruta, Energia Líquida de Lactação, FDN, Cálcio, Fósforo). Cada alimento <span class="m-var">i</span> ∈ {1, 2, ..., <span class="m-var">n</span>} é representado por um <strong>vetor nutricional</strong> <span class="m-vec">a</span><sub>i</sub> ∈ <strong>ℝ<sup>m</sup></strong>:</p>
+        
+        <div class="formula-box">
+          <math display="block">
+            <msub><mi class="m-vec">a</mi><mi>i</mi></msub>
+            <mo>=</mo>
+            <mrow>
+              <mo>[</mo>
+              <mtable>
+                <mtr><mtd><msub><mi>a</mi><mrow><mn>1</mn><mi>i</mi></mrow></msub></mtd></mtr>
+                <mtr><mtd><msub><mi>a</mi><mrow><mn>2</mn><mi>i</mi></mrow></msub></mtd></mtr>
+                <mtr><mtd><mo>⋮</mo></mtd></mtr>
+                <mtr><mtd><msub><mi>a</mi><mrow><mi>m</mi><mi>i</mi></mrow></msub></mtd></mtr>
+              </mtable>
+              <mo>]</mo>
+            </mrow>
+          </math>
+          <small style="color: var(--muted); margin-top: 0.4rem;">Onde <span class="m-var">a</span><sub>ji</sub> indica a concentração da <span class="m-var">j</span>-ésima fração nutricional por unidade de Matéria Seca (MS) do alimento <span class="m-var">i</span>.</small>
+        </div>
+
+        <p>A dieta total fornecida ao animal representa uma <strong>combinação linear positiva</strong> desses vetores de ingredientes, escalada pelas quantidades em quilogramas de matéria seca diária <span class="m-var">x</span><sub>i</sub> ≥ 0:</p>
+
+        <div class="formula-box">
+          <math display="block" class="formula-highlight">
+            <mi class="m-vec">y</mi>
+            <mo>=</mo>
+            <munderover>
+              <mo>∑</mo>
+              <mrow><mi>i</mi><mo>=</mo><mn>1</mn></mrow>
+              <mi>n</mi>
+            </munderover>
+            <msub><mi>x</mi><mi>i</mi></msub>
+            <msub><mi class="m-vec">a</mi><mi>i</mi></msub>
+            <mo>=</mo>
+            <msub><mi>x</mi><mn>1</mn></msub><msub><mi class="m-vec">a</mi><mn>1</mn></msub>
+            <mo>+</mo>
+            <msub><mi>x</mi><mn>2</mn></msub><msub><mi class="m-vec">a</mi><mn>2</mn></msub>
+            <mo>+</mo>
+            <mo>⋯</mo>
+            <mo>+</mo>
+            <msub><mi>x</mi><mi>n</mi></msub><msub><mi class="m-vec">a</mi><mi>n</mi></msub>
+          </math>
+        </div>
+
+        <h3>1.2 Independência Linear (LI) e Matriz de Incidência Nutricional</h3>
+        <p>Para garantir que o espaço de busca nutricional seja não-degenerado, os vetores de alimentos <span class="m-vec">a</span><sub>1</sub>, <span class="m-vec">a</span><sub>2</sub>, ..., <span class="m-vec">a</span><sub>n</sub> devem conter um subconjunto de vetores <strong>Linearmente Independentes (LI)</strong> que gerem o subespaço das exigências metabólicas. Matematicamente, se a matriz nutricional for <span class="m-vec">A</span> ∈ <strong>ℝ<sup>m × n</sup></strong>:</p>
+
+        <div class="formula-box">
+          <math display="block">
+            <mi class="m-vec">A</mi>
+            <mo>=</mo>
+            <mrow>
+              <mo>[</mo>
+              <mtable>
+                <mtr>
+                  <mtd><msub><mi>a</mi><mn>11</mn></msub></mtd>
+                  <mtd><msub><mi>a</mi><mn>12</mn></msub></mtd>
+                  <mtd><mo>⋯</mo></mtd>
+                  <mtd><msub><mi>a</mi><mrow><mn>1</mn><mi>n</mi></mrow></msub></mtd>
+                </mtr>
+                <mtr>
+                  <mtd><msub><mi>a</mi><mn>21</mn></msub></mtd>
+                  <mtd><msub><mi>a</mi><mn>22</mn></msub></mtd>
+                  <mtd><mo>⋯</mo></mtd>
+                  <mtd><msub><mi>a</mi><mrow><mn>2</mn><mi>n</mi></mrow></msub></mtd>
+                </mtr>
+                <mtr>
+                  <mtd><mo>⋮</mo></mtd>
+                  <mtd><mo>⋮</mo></mtd>
+                  <mtd><mo>⋱</mo></mtd>
+                  <mtd><mo>⋮</mo></mtd>
+                </mtr>
+                <mtr>
+                  <mtd><msub><mi>a</mi><mrow><mi>m</mi><mn>1</mn></mrow></msub></mtd>
+                  <mtd><msub><mi>a</mi><mrow><mn>m</mn><mn>2</mn></mrow></msub></mtd>
+                  <mtd><mo>⋯</mo></mtd>
+                  <mtd><msub><mi>a</mi><mrow><mi>m</mi><mi>n</mi></mrow></msub></mtd>
+                </mtr>
+              </mtable>
+              <mo>]</mo>
+            </mrow>
+          </math>
+        </div>
+
+        <p>O posto da matriz <strong>posto(A)</strong> define a dimensão do espaço de nutrientes efetivamente controlados. Se <strong>posto(A)</strong> &lt; <span class="m-var">m</span>, existem restrições redundantes que podem ser eliminadas do modelo linear.</p>
+
+        <h3>1.3 O Poliedro Convexo de Soluções Viáveis (𝒫)</h3>
+        <p>O conjunto de todas as combinações de dietas que satisfazem simultaneamente as <span class="m-var">m</span> restrições fisiológicas e nutricionais define um <strong>poliedro convexo</strong> 𝒫 ⊂ <strong>ℝ<sup>n</sup></strong>:</p>
+
+        <div class="formula-box">
+          <math display="block">
+            <mi mathvariant="">𝒫</mi>
+            <mo>=</mo>
+            <mrow>
+              <mo>{</mo>
+              <mi class="m-vec">x</mi><mo>∈</mo><msup><mi mathvariant="double-struck">R</mi><mi>n</mi></msup>
+              <mo>∣</mo>
+              <mi class="m-vec">A</mi><mi class="m-vec">x</mi><mo>≥</mo><msub><mi class="m-vec">b</mi><mtext>min</mtext></msub><mo>,</mo>
+              <mspace width="0.5em"/>
+              <mi class="m-vec">A</mi><mi class="m-vec">x</mi><mo>≤</mo><msub><mi class="m-vec">b</mi><mtext>max</mtext></msub><mo>,</mo>
+              <mspace width="0.5em"/>
+              <mi class="m-vec">x</mi><mo>≥ </mo><mn mathvariant="bold">0</mn>
+              <mo>}</mo>
+            </mrow>
+          </math>
+        </div>
+
+        <div class="note">
+          <p><strong>Propriedade Fundamental da Convexidade:</strong> Se dois vetores de dietas <span class="m-vec">x</span><sup>(1)</sup> e <span class="m-vec">x</span><sup>(2)</sup> são viáveis (ou seja, <span class="m-vec">x</span><sup>(1)</sup>, <span class="m-vec">x</span><sup>(2)</sup> ∈ 𝒫), qualquer mistura intermediária <span class="m-vec">x</span><sup>(λ)</sup> = λ<span class="m-vec">x</span><sup>(1)</sup> + (1 − λ)<span class="m-vec">x</span><sup>(2)</sup> para λ ∈ [0, 1] também atende perfeitamente a todas as exigências biológicas do animal.</p>
+        </div>
+
+        <h3>1.4 Do Método Gráfico ao Algoritmo Simplex em N Dimensões</h3>
+        <p>Enquanto o método gráfico fica restrito a <span class="m-var">n</span> = 2 ou <span class="m-var">n</span> = 3 ingredientes em plano visual, a nutrição prática utiliza <span class="m-var">n</span> ≥ 15 ingredientes e <span class="m-var">m</span> ≥ 30 nutrientes. O <strong>Teorema Fundamental da Programação Linear</strong> garante que, se a função objetivo do custo é linear, a solução ótima global <span class="m-vec">x</span>* reside obrigatoriamente em um dos <strong>vértices</strong> (pontos extremos) do poliedro 𝒫.</p>
+        
+        <p>O <strong>Algoritmo Simplex</strong> navega algebricamente pelas arestas do poliedro, partindo de uma Solução Básica Viável (SBV) inicial até alcançar o vértice de custo mínimo, sem necessidade de varrer o interior do poliedro.</p>
+      </section>
+
+      <!-- MÓDULO 2 -->
+      <section id="mod-2">
+        <h2>2. O Problema da Dieta de Custo Mínimo (LCR) e Formulação Matemática Estrita</h2>
+        <p>O modelo de Custo Mínimo (<em>Least-Cost Ration - LCR</em>) busca selecionar as quantidades diárias de cada insumo alimentar que minimizam a despesa financeira do produtor, garantindo que o lote de vacas receba os nutrientes exatos exigidos pelo sistema <strong>NASEM (2021) / NRC (2001)</strong>.</p>
+
+        <h3>2.1 Definindo as Variáveis de Decisão</h3>
+        <p>Seja <span class="m-var">x</span><sub>i</sub> ≥ 0 a quantidade consumida do alimento <span class="m-var">i</span> em <strong>quilogramas de Matéria Seca por vaca por dia (kg MS/vaca/dia)</strong> para <span class="m-var">i</span> = 1, 2, ..., <span class="m-var">n</span>. Em dietas de ruminantes, trabalha-se sempre em base seca devido à variação de umidade das forragens (ex: silagem com 35% de MS vs. milho grão com 88% de MS).</p>
+
+        <h3>2.2 A Função Objetivo Financeira</h3>
+        <p>Seja <span class="m-var">c</span><sub>i</sub> o custo por kg de matéria seca do alimento <span class="m-var">i</span> (expresso em R$/kg MS ou US$/kg MS). A função objetivo linear de minimização do custo total <span class="m-var">Z</span> é formulada como:</p>
+
+        <div class="formula-box">
+          <math display="block" class="formula-highlight">
+            <mtext>Minimizar </mtext>
+            <mi>Z</mi>
+            <mo>=</mo>
+            <munderover>
+              <mo>∑</mo>
+              <mrow><mi>i</mi><mo>=</mo><mn>1</mn></mrow>
+              <mi>n</mi>
+            </munderover>
+            <msub><mi>c</mi><mi>i</mi></msub>
+            <msub><mi>x</mi><mi>i</mi></msub>
+            <mo>=</mo>
+            <msub><mi>c</mi><mn>1</mn></msub><msub><mi>x</mi><mn>1</mn></msub>
+            <mo>+</mo>
+            <msub><mi>c</mi><mn>2</mn></msub><msub><mi>x</mi><mn>2</mn></msub>
+            <mo>+</mo>
+            <mo>⋯</mo>
+            <mo>+</mo>
+            <msub><mi>c</mi><mi>n</mi></msub><msub><mi>x</mi><mn>n</mn></msub>
+          </math>
+        </div>
+
+        <p>Em abordagens avançadas (como no software RuFaS), estende-se para a maximização do indicador <strong>IOFC (Income Over Feed Cost)</strong>:</p>
+
+        <div class="formula-box">
+          <math display="block">
+            <mtext>Maximizar </mtext>
+            <mtext>IOFC</mtext>
+            <mo>=</mo>
+            <mrow>
+              <mo>(</mo>
+              <msub><mtext>Preço</mtext><mtext>leite</mtext></msub>
+              <mo>×</mo>
+              <msub><mtext>Produção</mtext><mtext>leite</mtext></msub>
+              <mo>)</mo>
+            </mrow>
+            <mo>−</mo>
+            <munderover>
+              <mo>∑</mo>
+              <mrow><mi>i</mi><mo>=</mo><mn>1</mn></mrow>
+              <mi>n</mi>
+            </munderover>
+            <msub><mi>c</mi><mi>i</mi></msub>
+            <msub><mi>x</mi><mi>i</mi></msub>
+          </math>
+        </div>
+
+        <h3>2.3 Sistema Estrito de Inequações de Restrições Nutricionais e Fisiológicas</h3>
+
+        <div class="tbl">
+          <table>
+            <thead>
+              <tr><th>Nutriente / Requisito</th><th>Simbolismo</th><th>Inequação Matemática Formada</th><th>Origem Fisiológica</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Capacidade Limite de CMS</strong></td>
+                <td>CMS<sub>max</sub></td>
+                <td>∑ x<sub>i</sub> ≤ CMS<sub>max</sub></td>
+                <td>Capacidade física de enchimento do rume e regulação metabólica.</td>
+              </tr>
+              <tr>
+                <td><strong>Energia Líquida de Lactação</strong></td>
+                <td>EL<sub>L</sub> (Mcal/dia)</td>
+                <td>∑ e<sub>i</sub> · x<sub>i</sub> ≥ Demand<sub>ELL</sub></td>
+                <td>Manutenção metabólica basal e síntese de gordura e lactose no leite.</td>
+              </tr>
+              <tr>
+                <td><strong>Proteína Metabolizável (PM)</strong></td>
+                <td>PM (g/dia)</td>
+                <td>∑ p<sub>i</sub> · x<sub>i</sub> ≥ Demand<sub>PM</sub></td>
+                <td>Proteína microbiana ruminal + proteína não degradável no rume (PNDR).</td>
+              </tr>
+              <tr>
+                <td><strong>FDN Efetivo Mínimo (FDNef)</strong></td>
+                <td>FDN<sub>ef</sub> (%)</td>
+                <td>∑ f<sub>i</sub> · x<sub>i</sub> ≥ 0.25 × (∑ x<sub>i</sub>)</td>
+                <td>Estrutura física da fibra para estimular a ruminação e tamponamento salivar.</td>
+              </tr>
+              <tr>
+                <td><strong>Teto de FDN de Forragem</strong></td>
+                <td>FDN<sub>forr</sub> (%)</td>
+                <td>∑ f<sub>forr, i</sub> · x<sub>i</sub> ≤ 0.012 × (Peso Vivo)</td>
+                <td>Evitar o enchimento ruminal excessivo (<em>gut fill</em>) em vacas de alta produção.</td>
+              </tr>
+              <tr>
+                <td><strong>Cálcio e Fósforo</strong></td>
+                <td>Ca, P (g/dia)</td>
+                <td>∑ a<sub>Ca, i</sub> · x<sub>i</sub> ≥ Dem<sub>Ca</sub>,  ∑ a<sub>P, i</sub> · x<sub>i</sub> ≥ Dem<sub>P</sub></td>
+                <td>Mineralização óssea e composição iônica do leite produzido.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- MÓDULO 3 -->
+      <section id="mod-3">
+        <h2>3. Biologia e Zootecnia da Vaca Leiteira (Aulas do Prof. Dr. Leandro)</h2>
+        <p>A formulação matemática via Simplex requer o alinhamento rigoroso com a fisiologia digestiva do ruminante e a ecologia microbiana do rume, conforme detalhado nas aulas de Zootecnia e Nutrição Animal do <strong>Prof. Dr. Leandro Alexandre Freitas</strong>.</p>
+
+        <h3>3.1 O Rume como Ecossistema Fermentativo Complexo</h3>
+        <p>O rume é uma câmara de fermentação anaeróbica com volume de 100 a 150 litros, contendo bilhões de bactérias, protozoários e fungos. Os microrganismos convertem carboidratos fibrosos (celulose, hemicelulose) e não-fibrosos (amido, açúcares) em <strong>Ácidos Graxos Voláteis (AGVs)</strong>:</p>
+        
+        <ul>
+          <li><strong>Acetato (C2):</strong> Proveniente da fibra (FDN). Precursor primário da gordura do leite.</li>
+          <li><strong>Propionato (C3):</strong> Proveniente do amido e concentrados. Substrato gliconeogênico hepático primário (síntese de glicose).</li>
+          <li><strong>Butirato (C4):</strong> Fornece energia para os enterócitos e parede ruminal.</li>
+        </ul>
+
+        <h3>3.2 A Fisiologia do Balanço Energético Negativo (BEN) e Curva de Lactação</h3>
+        <p>Nos primeiros 60 a 90 dias pós-parto, a demanda energética para a produção de leite cresce a uma taxa muito superior à capacidade de ingestão de Matéria Seca (CMS) do animal. Isso gera o fenômeno do <strong>Balanço Energético Negativo (BEN)</strong>.</p>
+
+        <div class="warn">
+          <p><strong>Mecanismo do BEN:</strong> Para suprir o déficit de glicose na glândula mamária, a vaca mobiliza reservas corporais de lipídios do tecido adiposo (liberando Ácidos Graxos Não Esterificados - NEFA) e aminoácidos musculares. Isso acarreta perda acentuada de Escore de Condição Corporal (ECC) e risco de cetose ou esteatose hepática.</p>
+        </div>
+
+        <p>Conforme demonstrado no gráfico do quadro interativo (Painel 1 do SVG):</p>
+        <ul>
+          <li><strong>Multíparas:</strong> Apresentam pico de produção elevado no início do DEL (~35-50 kg/dia), porém com menor persistência de lactação ao longo dos meses.</li>
+          <li><strong>Primíparas:</strong> Apresentam pico mais moderado, contudo com curva plana e <strong>alta persistência de lactação</strong>, exigindo dietas ajustadas para continuar seu crescimento corporal além da síntese de leite.</li>
+        </ul>
+
+        <h3>3.3 A Hierarquia Biológica de Alocação de Nutrientes</h3>
+        <p>A partição de nutrientes no organismo da vaca segue uma prioridade metabólica rígida (Painel 2 do SVG):</p>
+        <ol class="steps">
+          <li><strong>1ª Prioridade - Lactação (Glândula Mamária):</strong> A glândula mamária capta glicose sanguínea de forma independente da insulina. Por imperativo evolutivo, a síntese de leite drena os nutrientes prioritariamente.</li>
+          <li><strong>2ª Prioridade - Manutenção Basal:</strong> Manutenção de batimentos cardíacos, atividade respiratória, turnover celular e regulação osmótica.</li>
+          <li><strong>3ª Prioridade - Reprodução & Gestação:</strong> O restabelecimento da ciclicidade ovariana, manifestação de cio e desenvolvimento do feto só ocorrem quando o balanço energético retorna à neutralidade ou positividade.</li>
+        </ol>
+      </section>
+
+      <!-- MÓDULO 4 -->
+      <section id="mod-4">
+        <h2>4. Arquitetura Biofisica e Computacional do RuFaS</h2>
+        <p>O <strong>RuFaS (Ruminant Farm Systems)</strong> é um modelo de simulação biofísica em código aberto desenvolvido por um consórcio de universidades norte-americanas para modelar integralmente a sustentabilidade operacional, econômica e ambiental de fazendas leiteiras.</p>
+
+        <h3>4.1 Visão Geral dos Módulos do RuFaS</h3>
+        <p>Diferente de formuladores de dieta isolados, o RuFaS acopla otimização de custo a ciclos biogeoquímicos de nutrientes:</p>
+
+        <div class="tbl">
+          <table>
+            <thead>
+              <tr><th>Módulo Biofísico</th><th>Responsabilidade Computacional</th><th>Interação com a Dieta do Simplex</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>Animal / Ration</code></td>
+                <td>Calcula a exigência nutricional do lote e executa a otimização da ração via matriz NASEM.</td>
+                <td>Determina a combinação de ingredientes x<sub>i</sub>* e repassa o consumo exato ao digestivo.</td>
+              </tr>
+              <tr>
+                <td><code>Manure & Emissions</code></td>
+                <td>Prediz a excreção de Nitrogênio na urina/fezes e emissões entéricas de Metano (CH<sub>4</sub>).</td>
+                <td>Dietas com excesso de Proteína Bruta aumentam o Nitrogênio Ureico no Leite (NUL) e excreção uréica.</td>
+              </tr>
+              <tr>
+                <td><code>Crop & Soil System</code></td>
+                <td>Simula a produção de forragens no solo da fazenda e a absorção de esterco.</td>
+                <td>Alimenta os custos de oportunidade dos volumosos internos (c<sub>i</sub>) na função objetivo.</td>
+              </tr>
+              <tr>
+                <td><code>Farm Economics</code></td>
+                <td>Calcula o fluxo de caixa diário, IOFC e custos operacionais totais.</td>
+                <td>Mede o custo diário consolidado da alimentação do rebanho.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>4.2 O Ponto de Entrada Integrador `main.py`</h3>
+        <p>A simulação é disparada pelo arquivo mestre <code>main.py</code>, responsável por instanciar os gerenciadores de tarefas, carregar os arquivos JSON e orquestrar a execução do módulo de ração.</p>
+      </section>
+
+      <!-- MÓDULO 5 -->
+      <section id="mod-5">
+        <h2>5. Encadeamento de Arquivos JSON e Configuracao do RuFaS</h2>
+        <p>A parametrização do RuFaS é inteiramente declarativa, utilizando uma cadeia estruturada de arquivos em formato JSON e tabelas CSV de composição nutricional.</p>
+
+        <h3>5.1 Estrutura de Hierarquia dos Arquivos</h3>
+        <p>O fluxo de carregamento do sistema obedece ao seguinte encadeamento computacional:</p>
+
+        <pre><code>task_manager_metadata.json
+   │
+   ├──► example_freestall_task.json
+   │      │
+   │      ├──► freestall_animal.json (Atributos Fisiológicos do Lote)
+   │      ├──► Midwest_feed.json (Dicionário de Alimentos e Preços)
+   │      └──► NASEM_Comp.csv (Tabela Numérica de Composição do NASEM)
+   │
+   └──► RationOptimizer (Execução do Solver de Programação Linear)</code></pre>
+
+        <h3>5.2 Exemplo Prático de Parâmetros de Entrada JSON</h3>
+        <p>Abaixo apresenta-se um fragmento real da configuração do animal em <code>freestall_animal.json</code> para um lote de vacas em pico de lactação:</p>
+
+        <pre><code>{
+  "animal_combination": {
+    "target_milk_production_kg": 35.0,
+    "milk_fat_percent": 4.0,
+    "milk_true_protein_percent": 3.2,
+    "milk_lactose_percent": 4.8,
+    "body_weight_kg": 740.0,
+    "days_in_milk": 130,
+    "age_days": 1000,
+    "lactation_number": 2,
+    "lactation_stage": "mid_lactation"
+  }
+}</code></pre>
+      </section>
+
+      <!-- MÓDULO 6 -->
+      <section id="mod-6">
+        <h2>6. O Otimizador Embutido `RationOptimizer` e SciPy/SLSQP</h2>
+        <p>A otimização de dietas no RuFaS é executada na classe Python <code>RationOptimizer</code>, que mapeia a formulação zootécnica para os métodos de otimização da biblioteca <code>scipy.optimize</code>.</p>
+
+        <h3>6.1 Estrutura do Código de Otimização em Python</h3>
+        <pre><code>import numpy as np
+from scipy.optimize import minimize, linprog
+
+class RationOptimizer:
+    def __init__(self, feed_costs, nutrient_matrix, min_bounds, max_bounds):
+        self.c = np.array(feed_costs)            # Vetor de custos c_i ($/kg MS)
+        self.A = np.array(nutrient_matrix)        # Matriz de nutrientes (m x n)
+        self.b_min = np.array(min_bounds)         # Inequações de mínimos
+        self.b_max = np.array(max_bounds)         # Inequações de máximos
+
+    def solve_least_cost(self):
+        """
+        Resolve o problema de minimização de custo via scipy.optimize.linprog / SLSQP.
+        """
+        # Conversão das restrições para formato matricial A_ub * x <= b_ub
+        A_ub = np.vstack([-self.A, self.A])
+        b_ub = np.concatenate([-self.b_min, self.b_max])
+        
+        # Limites de inclusão dos ingredientes x_i >= 0
+        bounds = [(0, None) for _ in range(len(self.c))]
+        
+        # Resolução via Algoritmo Simplex Revisitado / Interior Point
+        res = linprog(self.c, A_ub=A_ub, b_ub=b_ub, bounds=bounds, method='highs')
+        
+        if res.success:
+            return {
+                "status": "Otimização bem-sucedida",
+                "cost_per_day": res.fun,
+                "ration_vector_kg": res.x,
+                "slack_variables": res.slack
+            }
+        else:
+            raise ValueError(f"Falha na convergência do Simplex: {res.message}")</code></pre>
+
+        <div class="purple-box">
+          <p><strong>Uso do Algoritmo SLSQP:</strong> Quando a exigência energética depende da própria Ingestão de Matéria Seca (função não-linear do NASEM 2021), o RuFaS utiliza o método <code>SLSQP</code> (Sequential Least Squares Programming) da SciPy para iterar quadraticamente até a convergência das restrições de equilíbrio do rume.</p>
+        </div>
+      </section>
+
+      <!-- MÓDULO 7 -->
+      <section id="mod-7">
+        <h2>7. Passo a Passo Prático de Execucao no Terminal Linux</h2>
+        <p>Roteiro completo de comandos para clonar, configurar o ambiente Python e executar o solver RuFaS sem erros de compilação ou biblioteca.</p>
+
+        <h3>7.1 Isolamento de Ambiente via Pyenv e Virtualenv</h3>
+        <pre><code># Update do sistema e dependências C/C++
+sudo apt update && sudo apt install -y make build-essential libssl-dev zlib1g-dev \
+libbz2-dev libreadline-dev libsqlite3-dev wget curl llvm libncursesw5-dev \
+xz-utils tk-dev libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev
+
+# Instalação do Pyenv e Python 3.13
+curl https://pyenv.run | bash
+pyenv install 3.13.0
+pyenv global 3.13.0
+
+# Criação do ambiente virtual do projeto RuFaS
+python3 -m venv venv_rufas
+source venv_rufas/bin/activate
+pip install --upgrade pip setuptools wheel</code></pre>
+
+        <h3>7.2 Instalação das Dependências Zootécnicas e Execução</h3>
+        <pre><code># Clone do repositório oficial
+git clone https://github.com/RuFaS-Farm/RuFaS.git
+cd RuFaS
+
+# Instalação de pacotes científicos exigidos
+pip install numpy scipy pandas optuna matplotlib
+
+# Disparo da simulação integrada mestre
+python main.py --config config/task_manager_metadata.json</code></pre>
+
+        <div class="warn">
+          <p><strong>Depuração de Erros Comuns no Terminal:</strong></p>
+          <ul>
+            <li><code>SSL Certificate Verify Failed:</code> Ocorre ao utilizar Python compilações sem pacotes <code>ca-certificates</code> atualizados. Resolva com <code>pip install --trusted-host pypi.org --trusted-host files.pythonhosted.org scipy</code>.</li>
+            <li><code>MemoryError / RAM Limit:</code> Reduza a resolução temporal de simulação de 365 dias para 30 dias alterando a chave <code>"simulation_days": 30</code> em <code>task_manager_metadata.json</code>.</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- MÓDULO 8 -->
+      <section id="mod-8">
+        <h2>8. Análise dos Resultados e Estudo de Caso Resolvido</h2>
+        <p>Abaixo apresentam-se os resultados gerados pelo solver do RuFaS para a formulação da ração de custo mínimo no lote de vacas em lactação intermediária (35 kg leite/dia, 740 kg peso vivo).</p>
+
+        <h3>8.1 Composição da Dieta Ótima Encontrada (x*)</h3>
+        <div class="tbl">
+          <table>
+            <thead>
+              <tr><th>Ingrediente Alimento</th><th>Inclusão (kg MS/dia)</th><th>Proporção na MS (%)</th><th>Custo ($/kg MS)</th><th>Custo Parcial ($/vaca/dia)</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Silagem de Milho (Midwest)</strong></td>
+                <td>12.50 kg</td>
+                <td>51.6 %</td>
+                <td>$0.11</td>
+                <td>$1.375</td>
+              </tr>
+              <tr>
+                <td><strong>Milho Grão Moído</strong></td>
+                <td>4.80 kg</td>
+                <td>19.8 %</td>
+                <td>$0.22</td>
+                <td>$1.056</td>
+              </tr>
+              <tr>
+                <td><strong>Farelo de Soja (48% PB)</strong></td>
+                <td>3.20 kg</td>
+                <td>13.2 %</td>
+                <td>$0.48</td>
+                <td>$1.536</td>
+              </tr>
+              <tr>
+                <td><strong>Feno de Alfafa</strong></td>
+                <td>2.80 kg</td>
+                <td>11.6 %</td>
+                <td>$0.25</td>
+                <td>$0.700</td>
+              </tr>
+              <tr>
+                <td><strong>Caroço de Algodão Integral</strong></td>
+                <td>0.60 kg</td>
+                <td>2.5 %</td>
+                <td>$0.35</td>
+                <td>$0.210</td>
+              </tr>
+              <tr>
+                <td><strong>Núcleo Mineral e Tamponante</strong></td>
+                <td>0.32 kg</td>
+                <td>1.3 %</td>
+                <td>$0.85</td>
+                <td>$0.272</td>
+              </tr>
+              <tr>
+                <td><strong>TOTAL CONSOLIDADO</strong></td>
+                <td><strong>24.22 kg MS</strong></td>
+                <td><strong>100.0 %</strong></td>
+                <td>—</td>
+                <td><strong>$5.149 / vaca / dia</strong></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="info">
+          <p><strong>Desempenho Econômico do Lote:</strong> Produção de 35 kg de leite a US$ 0.42/kg = Receita Bruta de US$ 14.70/vaca/dia. Custo de Alimentação = US$ 5.15/vaca/dia. <strong>IOFC Resultante = US$ 9.55 / vaca / dia</strong>. Custo por kg de leite produzido = US$ 0.147/kg.</p>
+        </div>
+      </section>
+
+      <!-- MÓDULO 9 -->
+      <section id="mod-9">
+        <h2>9. Analise de Sensibilidade, Preço-Sombra e Dualidade</h2>
+        <p>A teoria da dualidade em Programação Linear fornece diagnósticos gerenciais valiosos sobre a estabilidade da dieta e o impacto financeiro das restrições nutricionais impostas pelo zootecnista.</p>
+
+        <h3>9.1 O Problema Dual Nutricional</h3>
+        <p>Enquanto o problema <strong>Primal</strong> busca a quantidade de alimento <span class="m-var">x</span><sub>i</sub> que minimiza o custo monetário total, o problema <strong>Dual</strong> busca os <strong>valores marginais imputados (variáveis duais y<sub>j</sub>)</strong> para cada nutriente <span class="m-var">j</span> fornecido ao organismo do animal.</p>
+
+        <div class="formula-box">
+          <math display="block">
+            <mtext>Primal: </mtext>
+            <mtext>Min </mtext><mi>Z</mi><mo>=</mo><msup><mi class="m-vec">c</mi><mi>T</mi></msup><mi class="m-vec">x</mi>
+            <mspace width="1em"/>
+            <mtext>sujeito a </mtext><mi class="m-vec">A</mi><mi class="m-vec">x</mi><mo>≥</mo><mi class="m-vec">b</mi>
+          </math>
+          <math display="block">
+            <mtext>Dual: </mtext>
+            <mtext>Max </mtext><mi>W</mi><mo>=</mo><msup><mi class="m-vec">b</mi><mi>T</mi></msup><mi class="m-vec">y</mi>
+            <mspace width="1em"/>
+            <mtext>sujeito a </mtext><msup><mi class="m-vec">A</mi><mi>T</mi></msup><mi class="m-vec">y</mi><mo>≤</mo><mi class="m-vec">c</mi>
+          </math>
+        </div>
+
+        <h3>9.2 O Conceito Zootécnico de Preço-Sombra (<em>Shadow Price</em>)</h3>
+        <p>O preço-sombra <span class="m-var">y</span><sub>j</sub>* de uma restrição nutricional representa quanto o custo total da ração <span class="m-var">Z</span>* aumentaria (ou diminuiria) caso a exigência do nutriente <span class="m-var">b</span><sub>j</sub> fosse elevada em uma unidade extra:</p>
+
+        <div class="formula-box">
+          <math display="block" class="formula-highlight">
+            <msubsup><mi>y</mi><mi>j</mi><mo>*</mo></msubsup>
+            <mo>=</mo>
+            <mfrac>
+              <mrow><mo>∂</mo><msup><mi>Z</mi><mo>*</mo></msup></mrow>
+              <mrow><mo>∂</mo><msub><mi>b</mi><mi>j</mi></msub></mrow>
+            </mfrac>
+          </math>
+        </div>
+
+        <ul>
+          <li><strong>Restrição Não-Ativa (Slack &gt; 0):</strong> O preço-sombra é zero (<span class="m-var">y</span><sub>j</sub>* = 0). O nutriente foi atendido em excesso e não limita o custo da ração.</li>
+          <li><strong>Restrição Ativa (Slack = 0):</strong> O preço-sombra é estritamente positivo (<span class="m-var">y</span><sub>j</sub>* &gt; 0). É um <strong>gargalo nutricional ativo</strong>. Por exemplo, se o preço-sombra da Energia Líquida for US$ 0,18/Mcal, afrouxar a exigência em 1 Mcal reduzirá o custo da ração em US$ 0,18/dia.</li>
+        </ul>
+
+        <h3>9.3 Preço de Custo Limite (<em>Reduced Cost</em>)</h3>
+        <p>Para um ingrediente <span class="m-var">i</span> que não foi incluído na dieta ótima (<span class="m-var">x</span><sub>i</sub>* = 0), o <strong>custo reduzido</strong> indica quanto o preço de mercado desse ingrediente precisa cair para que ele passe a ser atrativo e entre na formulação do Simplex.</p>
+      </section>
+
+      <!-- MÓDULO 10 -->
+      <section id="mod-10">
+        <h2>10. A Fronteira Tecnológica: Neuro-Algoritmos e Datasets Sintéticos</h2>
+        <p>A integração entre a Programação Linear clássica e a Aprendizagem de Máquina Profunda (Deep Learning) representa o estado da arte na automação de fazendas de precisão.</p>
+
+        <h3>10.1 Inferência de Dietas em Tempo Real via Redes Neurais</h3>
+        <p>Embora o algoritmo Simplex/SLSQP seja exato, sua execução computacional leva alguns segundos por vaca. Em ordenhadeiras robotizadas que ajustam a ração individualmente durante o fluxo do animal, exige-se tempo de resposta em milissegundos.</p>
+
+        <p>O RuFaS pode ser utilizado para gerar <strong>datasets sintéticos massivos</strong> (gerando 500.000 cenários de vacas e soluções do Simplex) para treinar uma Redes Neural Densa (MLP / ResNet Tabular):</p>
+
+        <pre><code>Entradas Fisiológicas (PV, Leite, DEL, Gordura) 
+   ──► [Rede Neural Densa Treinada] 
+   ──► Predição Instantânea de x* (Vetor de Dietas) [1 ms]</code></pre>
+      </section>
+
+      <!-- MÓDULO 11 -->
+      <section id="mod-11">
+        <h2>11. Guia para Defesa Acadêmica e Perguntas Típicas da Banca</h2>
+        <p>Conjunto de perguntas técnicas prováveis com respostas fundamentadas para utilização na apresentação do trabalho:</p>
+
+        <div class="formula-box">
+          <strong>Pergunta 1: Por que utilizar Matéria Seca (MS) e não a Matéria Natural (MN) no Simplex?</strong>
+          <p style="margin: 0.3rem 0 0 0;"><em>Resposta:</em> A umidade das forragens altera drasticamente o peso sem alterar o aporte nutricional real. Uma silagem possui ~65% de água. Se formulado em matéria natural, o otimizador escolheria insumos diluídos equivocadamente. O cálculo em MS isola o valor nutritivo intrínseco.</p>
+        </div>
+
+        <div class="formula-box">
+          <strong>Pergunta 2: O que ocorre matematicamente se adicionarmos restrições nutricionais incompatíveis?</strong>
+          <p style="margin: 0.3rem 0 0 0;"><em>Resposta:</em> O poliedro de soluções viáveis torna-se um conjunto vazio (𝒫 = ∅). O algoritmo Simplex detecta o status de <strong>Inviabilidade (Infeasible Solution)</strong>. Zootecnicamente, significa que é biologicamente impossível atender àquela exigência com o mix de ingredientes fornecido (ex: exigir 40 kg de leite com capacidade de consumo limitada em 15 kg MS).</p>
+        </div>
+
+        <div class="formula-box">
+          <strong>Pergunta 3: Qual a diferença entre os modelos NASEM (2021) e NRC (2001)?</strong>
+          <p style="margin: 0.3rem 0 0 0;"><em>Resposta:</em> O NASEM (2021) atualizou as equações de predição de síntese de proteína microbiana e degradabilidade dos carboidratos no rume, incorporando coeficientes de digestibilidade mais precisos baseados em dinâmicas não-lineares, superando as estimativas estáticas do NRC (2001).</p>
+        </div>
+
+        <div class="formula-box">
+          <strong>Pergunta 4: Como o Preço-Sombra auxilia o produtor na compra de insumos?</strong>
+          <p style="margin: 0.3rem 0 0 0;"><em>Resposta:</em> O Preço-Sombra identifica o valor teto de disposição a pagar por um ingrediente ou nutriente limitante. Se o preço-sombra da Proteína Metabolizável for elevado, compensa adquirir concentrados proteicos de maior valor agregado, pois o impacto na redução geral do custo da ração será expressivo.</p>
+        </div>
+      </section>
+
+    </article>
+  </div>
+</div>
+
+<script>
+function toggleTheme() {
+  const root = document.documentElement;
+  const currentTheme = root.getAttribute('data-theme');
+  const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+  
+  if (currentTheme === 'dark') {
+    root.setAttribute('data-theme', 'light');
+    document.getElementById('themeLabel').textContent = 'Modo Escuro';
+  } else {
+    root.setAttribute('data-theme', 'dark');
+    document.getElementById('themeLabel').textContent = 'Modo Claro';
+  }
+}
+
+(function initTheme() {
+  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  if (prefersDark) {
+    document.getElementById('themeLabel').textContent = 'Modo Claro';
+  } else {
+    document.getElementById('themeLabel').textContent = 'Modo Escuro';
+  }
+})();
+</script>
+</body>
+</html>
