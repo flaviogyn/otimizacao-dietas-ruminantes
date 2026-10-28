@@ -2,7 +2,7 @@
   "feeds": [
     {
       "feed_type": 51,
-      "purchased_feed_cost": 0.16,
+      "purchased_feed_cost": 0.01,
       "buffer": 0.15,
       "runtime_purchase_allowance": 1000.0,
       "advance_purchase_allowance": 1000000.0,
@@ -10,7 +10,7 @@
     },
     {
       "feed_type": 110,
-      "purchased_feed_cost": 0.18,
+      "purchased_feed_cost": 0.01,
       "buffer": 0.15,
       "runtime_purchase_allowance": 1000.0,
       "advance_purchase_allowance": 1000000.0,
@@ -26,7 +26,7 @@
     },
     {
       "feed_type": 44,
-      "purchased_feed_cost": 0.19,
+      "purchased_feed_cost": 0.5,
       "buffer": 0.15,
       "runtime_purchase_allowance": 1000.0,
       "advance_purchase_allowance": 1000000.0,
@@ -50,7 +50,7 @@
     },
     {
       "feed_type": 301,
-      "purchased_feed_cost": 0.80,
+      "purchased_feed_cost": 1.0,
       "buffer": 0.15,
       "runtime_purchase_allowance": 1000.0,
       "advance_purchase_allowance": 1000000.0,
