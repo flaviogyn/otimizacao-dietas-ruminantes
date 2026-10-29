@@ -1,5 +1,7 @@
 import os
-import pandas as pd
+from xml.sax.saxutils import escape
+
+import openpyxl
 from reportlab.lib.pagesizes import letter
 from reportlab.lib import colors
 from reportlab.platypus import (
@@ -8,6 +10,26 @@ from reportlab.platypus import (
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 from reportlab.pdfgen import canvas
+
+EXCEL_PATH = os.path.join('Fazenda Campo Dourado', 'ingredientes_racoes_GO_campo_dourado.xlsx')
+
+
+def load_spreadsheet():
+    """Lê as linhas de alimentos da planilha (cabeçalho na linha 3, dados a partir da linha 4)."""
+    ws = openpyxl.load_workbook(EXCEL_PATH).active
+    rows = []
+    for r in range(4, ws.max_row + 1):
+        values = [ws.cell(row=r, column=c).value for c in range(1, 14)]
+        if values[0] is None:
+            continue
+        rows.append({
+            'feed_type': int(values[0]), 'nome': values[1], 'categoria': values[2],
+            'DM': values[3], 'CP': values[4], 'NDF': values[5], 'Ca': values[6], 'P': values[7],
+            'custo': values[8], 'preco_t': values[9],
+            'preco_original': values[10] or '—', 'fonte': values[11] or '—', 'conversao': values[12] or '—',
+        })
+    return rows
+
 
 class NumberedCanvas(canvas.Canvas):
     def __init__(self, *args, **kwargs):
@@ -32,7 +54,7 @@ class NumberedCanvas(canvas.Canvas):
         if self._pageNumber > 1:
             self.setFont('Helvetica', 8)
             self.setFillColor(colors.HexColor('#64748b'))
-            self.drawString(36, letter[1] - 25, 'IFG / RuFaS — Fazenda Campo Dourado | Relatório de Composição Bromatológica')
+            self.drawString(36, letter[1] - 25, 'IFG / RuFaS — Fazenda Campo Dourado | Relatório de Composição Bromatológica e Preços')
             self.drawRightString(letter[0] - 36, letter[1] - 25, 'Outubro / 2026')
             self.setStrokeColor(colors.HexColor('#cbd5e1'))
             self.setLineWidth(0.5)
@@ -185,6 +207,7 @@ def generate_pdf():
         textColor=colors.HexColor('#0f766e')
     ))
 
+    feeds = load_spreadsheet()
     story = []
 
     # 1. Header Banner Box
@@ -208,7 +231,7 @@ def generate_pdf():
     story.append(Spacer(1, 10))
 
     # Title & Subtitle
-    story.append(Paragraph("Relatório Técnico: Composição Bromatológica e Origem dos Dados", styles['MainTitle']))
+    story.append(Paragraph("Relatório Técnico: Composição Bromatológica, Preços e Origem dos Dados", styles['MainTitle']))
     story.append(Paragraph("Consolidação dos 12 Alimentos da Fazenda Campo Dourado (GO_campo_dourado) com Base no RuFaS", styles['SubTitle']))
     story.append(HRFlowable(width="100%", thickness=1.5, color=colors.HexColor('#0284c7'), spaceAfter=8, spaceBefore=0))
 
@@ -241,7 +264,7 @@ def generate_pdf():
     # Section 1: Overview
     story.append(Paragraph("1. Contexto e Objetivo do Documento", styles['SectionHeader']))
     story.append(Paragraph(
-        "Este relatório formaliza a proveniência e os valores dos parâmetros nutricionais inseridos na planilha "
+        "Este relatório formaliza a proveniência e os valores dos parâmetros nutricionais e dos preços inseridos na planilha "
         "<b><code>ingredientes_racoes_GO_campo_dourado.xlsx</code></b>. Os ingredientes correspondem aos 12 alimentos "
         "utilizados na formulação das dietas dos lotes de animais (bezerros, novilhas em recria, vacas no pré-parto e vacas em lactação) "
         "para o cenário representativo da bacia leiteira de Goiás no simulador biofísico <b>RuFaS</b>.",
@@ -256,24 +279,15 @@ def generate_pdf():
     # Section 2: Main Consolidated Table
     story.append(Paragraph("2. Tabela de Alimentos Preenchida na Planilha", styles['SectionHeader']))
     story.append(Paragraph(
-        "A tabela abaixo reproduz fielmente as colunas e os dados consolidados na planilha Excel, onde todas as "
-        "células anteriormente pendentes (travessão '–') foram completadas com os teores oficiais do RuFaS:",
+        "A tabela abaixo é lida diretamente da planilha Excel. A composição vem do NASEM (RuFaS); o custo "
+        "(<code>purchased_feed_cost</code>, em R$/kg de MS) é o valor enviado ao RuFaS e usado no modelo de PL, e o "
+        "preço por tonelada de matéria natural (MN) é a referência comercial:",
         styles['BodyP']
     ))
 
-    # Table columns:
-    # 1: feed_type (40)
-    # 2: Alimento (145)
-    # 3: Categoria (85)
-    # 4: DM (45)
-    # 5: CP (45)
-    # 6: NDF (45)
-    # 7: Ca (45)
-    # 8: P (45)
-    # 9: Custo (45)
-    # Sum = 40+145+85+45*6 = 540 pt
+    # Larguras: 36 + 128 + 72 + 5 x 40 + 48 + 56 = 540 pt
     headers_main = [
-        Paragraph("<b>feed_type</b>", styles['TableHead']),
+        Paragraph("<b>feed_<br/>type</b>", styles['TableHead']),
         Paragraph("<b>Alimento</b>", styles['TableHead']),
         Paragraph("<b>Categoria</b>", styles['TableHead']),
         Paragraph("<b>DM<br/>(%MS)</b>", styles['TableHead']),
@@ -281,40 +295,27 @@ def generate_pdf():
         Paragraph("<b>NDF<br/>(%)</b>", styles['TableHead']),
         Paragraph("<b>Ca<br/>(%)</b>", styles['TableHead']),
         Paragraph("<b>P<br/>(%)</b>", styles['TableHead']),
-        Paragraph("<b>Custo<br/>($/kg MS)</b>", styles['TableHead'])
+        Paragraph("<b>Custo<br/>(R$/kg MS)</b>", styles['TableHead']),
+        Paragraph("<b>Preço<br/>(R$/t MN)</b>", styles['TableHead'])
     ]
 
     rows_main = [headers_main]
-    
-    table_data_raw = [
-        (18, 'Bermudagrass, feno', 'Forragem', 93.37, 10.99, 65.41, 0.491, 0.195, 0.01),
-        (23, 'Blood meal, low dRUP', 'Concentrado proteico', 90.86, 95.06, 0.00, 0.135, 0.276, 0.10),
-        (44, 'Milho grão moído seco', 'Energético', 86.91, 8.51, 9.76, 0.035, 0.309, 0.50),
-        (51, 'Silagem de milho, meia maturação', 'Forragem', 35.36, 7.71, 40.93, 0.237, 0.232, 0.01),
-        (94, 'Mistura capim-leguminosa, feno', 'Forragem', 89.24, 15.61, 54.69, 0.625, 0.329, 0.01),
-        (100, 'Mistura capim-leguminosa, silagem', 'Forragem', 40.02, 17.68, 51.23, 0.870, 0.341, 0.01),
-        (110, 'Leguminosa forrageira, silagem', 'Forragem', 42.88, 20.47, 43.20, 1.254, 0.351, 0.01),
-        (176, 'Sudan grass, silagem madura', 'Forragem', 31.47, 9.54, 66.62, 0.446, 0.266, 0.10),
-        (202, 'Leite integral', 'Leite (bezerros)', 12.50, 25.40, 0.00, 1.000, 0.750, 0.10),
-        (216, 'Starter 18CP high starch (bezerros)', 'Starter', 88.00, 20.60, 17.37, 0.750, 0.370, 0.10),
-        (301, 'Premix mineral/vitamínico', 'Mineral', 99.46, 0.04, 0.14, 15.430, 2.320, 1.00),
-        (303, 'Premix mineral/vitamínico', 'Mineral', 74.11, 33.37, 23.88, 0.422, 0.730, 0.10),
-    ]
-
-    for item in table_data_raw:
+    for item in feeds:
+        preco_t = f"{item['preco_t']:,.2f}" if isinstance(item['preco_t'], (int, float)) else '—'
         rows_main.append([
-            Paragraph(str(item[0]), styles['TableCellCenter']),
-            Paragraph(item[1], styles['TableCell']),
-            Paragraph(item[2], styles['TableCell']),
-            Paragraph(f"{item[3]:.2f}", styles['TableCellRight']),
-            Paragraph(f"{item[4]:.2f}", styles['TableCellRight']),
-            Paragraph(f"{item[5]:.2f}", styles['TableCellRight']),
-            Paragraph(f"{item[6]:.3f}", styles['TableCellRight']),
-            Paragraph(f"{item[7]:.3f}", styles['TableCellRight']),
-            Paragraph(f"{item[8]:.2f}", styles['TableCellRight']),
+            Paragraph(str(item['feed_type']), styles['TableCellCenter']),
+            Paragraph(escape(item['nome']), styles['TableCell']),
+            Paragraph(escape(item['categoria']), styles['TableCell']),
+            Paragraph(f"{item['DM']:.2f}", styles['TableCellRight']),
+            Paragraph(f"{item['CP']:.2f}", styles['TableCellRight']),
+            Paragraph(f"{item['NDF']:.2f}", styles['TableCellRight']),
+            Paragraph(f"{item['Ca']:.3f}", styles['TableCellRight']),
+            Paragraph(f"{item['P']:.3f}", styles['TableCellRight']),
+            Paragraph(f"{item['custo']:.4f}", styles['TableCellRight']),
+            Paragraph(preco_t, styles['TableCellRight']),
         ])
 
-    t_main = Table(rows_main, colWidths=[48, 142, 80, 45, 45, 45, 45, 45, 45])
+    t_main = Table(rows_main, colWidths=[36, 128, 72, 40, 40, 40, 40, 40, 48, 56])
     
     t_main_style = [
         ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#0f766e')), # Teal Header
@@ -353,13 +354,72 @@ def generate_pdf():
         ('PADDING', (0,0), (-1,-1), 6),
     ]))
     story.append(t_callout)
+    story.append(Spacer(1, 6))
+
+    # Callout box regarding feeds 23 and 303
+    callout_feeds = [[
+        Paragraph(
+            "<b>Atenção aos alimentos 23 e 303:</b><br/>"
+            "<b>23 – Farinha de sangue:</b> o uso de proteínas de origem animal na alimentação de ruminantes é proibido no "
+            "Brasil (IN MAPA nº 8/2004). O custo de 999 R$/kg MS é uma penalidade para excluí-la da otimização.<br/>"
+            "<b>303 – Blend de subprodutos:</b> no <code>NASEM_Comp.csv</code> ele é o <i>Farm ES Northeast BP Blend</i>, "
+            "um concentrado (<code>feed_type = Conc</code>) com 33% de PB, e não um premix mineral, como constava na "
+            "versão anterior da planilha. Foi precificado pelo DDGS de milho, o subproduto proteico equivalente "
+            "no Centro-Oeste.",
+            styles['CalloutText']
+        )
+    ]]
+    t_callout_feeds = Table(callout_feeds, colWidths=[usable_width])
+    t_callout_feeds.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#fff7ed')),
+        ('BOX', (0,0), (-1,-1), 1, colors.HexColor('#ea580c')),
+        ('PADDING', (0,0), (-1,-1), 6),
+    ]))
+    story.append(t_callout_feeds)
     story.append(Spacer(1, 14))
 
-    # Section 3: Data Sources
-    story.append(Paragraph("3. Origem dos Dados e Rastreabilidade nos Arquivos do RuFaS", styles['SectionHeader']))
+    # Section 3: Prices and sources
+    story.append(Paragraph("3. Preços dos Alimentos e Fontes", styles['SectionHeader']))
     story.append(Paragraph(
-        "Os teores nutricionais e econômicos foram extraídos da estrutura de simulação da Fazenda Campo Dourado. "
-        "A cadeia de proveniência envolve quatro arquivos-chave do repositório:",
+        "Pesquisa de preços realizada em 28/10/2026. As cotações oficiais (CEPEA e CNA/Cepea) foram usadas quando "
+        "existiam; para os demais itens foram usados anúncios, compras públicas e guias de preço, com as aproximações "
+        "indicadas. Todos os preços foram convertidos para R$/kg de MS pela fórmula "
+        "<b>R$/kg MS = (R$/kg MN) ÷ (MS% ÷ 100)</b>.",
+        styles['BodyP']
+    ))
+
+    price_rows = [[
+        Paragraph("<b>feed_<br/>type</b>", styles['TableHead']),
+        Paragraph("<b>Preço original</b>", styles['TableHead']),
+        Paragraph("<b>Fonte</b>", styles['TableHead']),
+        Paragraph("<b>Conversão / observação</b>", styles['TableHead']),
+    ]]
+    for item in feeds:
+        price_rows.append([
+            Paragraph(str(item['feed_type']), styles['TableCellCenter']),
+            Paragraph(escape(str(item['preco_original'])), styles['TableCell']),
+            Paragraph(escape(str(item['fonte'])), styles['TableCell']),
+            Paragraph(escape(str(item['conversao'])), styles['TableCell']),
+        ])
+    t_prices = Table(price_rows, colWidths=[36, 96, 214, 194], repeatRows=1)
+    t_prices_style = [
+        ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#0f766e')),
+        ('VALIGN', (0,0), (-1,-1), 'TOP'),
+        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#cbd5e1')),
+        ('PADDING', (0,0), (-1,-1), 3),
+        ('BOX', (0,0), (-1,-1), 1, colors.HexColor('#0f766e')),
+    ]
+    for r_idx in range(2, len(price_rows), 2):
+        t_prices_style.append(('BACKGROUND', (0, r_idx), (-1, r_idx), colors.HexColor('#f8fafc')))
+    t_prices.setStyle(TableStyle(t_prices_style))
+    story.append(t_prices)
+    story.append(Spacer(1, 14))
+
+    # Section 4: Data Sources
+    story.append(Paragraph("4. Origem dos Dados e Rastreabilidade nos Arquivos do Projeto", styles['SectionHeader']))
+    story.append(Paragraph(
+        "Os teores nutricionais foram extraídos da estrutura de simulação da Fazenda Campo Dourado e os preços, da "
+        "pesquisa da Seção 3. A cadeia de proveniência envolve os seguintes arquivos do repositório:",
         styles['BodyP']
     ))
 
@@ -381,12 +441,20 @@ def generate_pdf():
         ],
         [
             Paragraph("<code>inputs_resolvidos/<br/>feed.json</code> e<br/><code>feed_goias.json</code>", styles['TableCell']),
-            Paragraph("Configuração das dietas dos lotes da fazenda e custos de aquisição por kg de Matéria Seca.", styles['TableCell']),
+            Paragraph("Configuração das dietas dos lotes da fazenda e custos de aquisição por kg de Matéria Seca. "
+                      "Recebe os custos da planilha via <code>sincronizar_planilha_rufas.py</code>.", styles['TableCell']),
             Paragraph("<code>purchased_feed_cost</code> (custo de compra por kg de MS).", styles['TableCell'])
         ],
         [
+            Paragraph("<code>otimizacao/<br/>gerar_modelo_pl.py</code> e<br/><code>modelo_pl_lac_cow.md</code>", styles['TableCell']),
+            Paragraph("Modelo de PL de custo mínimo do lote de vacas em lactação, com coeficientes calculados pelas "
+                      "funções do RuFaS a partir desta planilha e do <code>NASEM_Comp.csv</code>.", styles['TableCell']),
+            Paragraph("Função objetivo, variáveis de decisão e restrições NASEM.", styles['TableCell'])
+        ],
+        [
             Paragraph("<code>docs/<br/>OtimizadorNasem.pdf</code>", styles['TableCell']),
-            Paragraph("Documento técnico do Otimizador Linear NASEM (Simplex/HiGHS) acoplado ao RuFaS.", styles['TableCell']),
+            Paragraph("Documento técnico do OtimizadorNasem, ferramenta independente (Simplex/HiGHS) que replica as "
+                      "restrições NASEM do otimizador interno do RuFaS (SLSQP).", styles['TableCell']),
             Paragraph("Especificação das restrições e confirmação de que <code>rufas_id == feed_type</code>.", styles['TableCell'])
         ]
     ]
@@ -399,12 +467,13 @@ def generate_pdf():
         ('PADDING', (0,0), (-1,-1), 4),
         ('BACKGROUND', (0,1), (-1,1), colors.HexColor('#f8fafc')),
         ('BACKGROUND', (0,3), (-1,3), colors.HexColor('#f8fafc')),
+        ('BACKGROUND', (0,5), (-1,5), colors.HexColor('#f8fafc')),
     ]))
     story.append(t_sources)
     story.append(Spacer(1, 14))
 
-    # Section 4: Raw values comparison table
-    story.append(Paragraph("4. Rastreabilidade Detalhada: Valores Brutos no NASEM_Comp.csv", styles['SectionHeader']))
+    # Section 5: Raw values comparison table
+    story.append(Paragraph("5. Rastreabilidade Detalhada: Valores Brutos no NASEM_Comp.csv", styles['SectionHeader']))
     story.append(Paragraph(
         "Para fins de auditoria científica e validação das dietas, a tabela abaixo apresenta os valores brutos "
         "exatos (com precisão de 4 casas decimais) conforme registrados no arquivo <code>NASEM_Comp.csv</code>:",
@@ -466,12 +535,20 @@ def generate_pdf():
     story.append(t_raw)
     story.append(Spacer(1, 14))
 
-    # Section 5: Conclusion / Sign-off
-    story.append(Paragraph("5. Validação e Conclusão", styles['SectionHeader']))
+    # Section 6: Conclusion / Sign-off
+    story.append(Paragraph("6. Validação e Conclusão", styles['SectionHeader']))
     story.append(Paragraph(
-        "A integridade dos dados foi testada e aprovada pelo ambiente de simulação biofísica do RuFaS. "
-        "A planilha Excel encontra-se pronta para utilização em formulações de dietas, estudos de sensibilidade "
-        "econômica e integração com as rotinas de otimização linear (Simplex) do projeto.",
+        "A composição dos 12 alimentos confere com o <code>NASEM_Comp.csv</code> usado pelo RuFaS, e todos os itens "
+        "têm preço com fonte documentada. A planilha fornece a <b>função objetivo</b> (custos em R$/kg MS) do modelo de "
+        "programação linear. As restrições nutricionais dependem também de colunas do <code>NASEM_Comp.csv</code> "
+        "(energia, proteína metabolizável, extrato etéreo) e das exigências dos animais simuladas no RuFaS; o modelo "
+        "completo é gerado por <code>otimizacao/gerar_modelo_pl.py</code>.",
+        styles['BodyP']
+    ))
+    story.append(Paragraph(
+        "<b>Limitações dos preços:</b> só milho, leite e silagem de milho têm cotação oficial (CEPEA e CNA/Cepea). "
+        "As silagens 100, 110 e 176 e o blend 303 foram precificados por aproximação, e os anúncios usados não "
+        "incluem frete até Goiás. Esses itens são os primeiros candidatos à análise de sensibilidade econômica.",
         styles['BodyP']
     ))
 
