@@ -1,0 +1,130 @@
+%\usepackage[round,authoryear]{natbib}	% Utilizado para bibliografia
+%\usepackage{ucs}	% Inclui utf-8 (caso utilize latin1 no inputec)
+%\usepackage[round,authoryear]{natbib}	% Pacote completo para bibliografia (não usaremos)
+%\usepackage{cite}	% Pacote para citação, não precisa!
+
+\usepackage{fancyhdr}
+\usepackage{fullpage}
+\usepackage{indentfirst}    % Identa também o primeiro parágrafo das seções!
+\usepackage{caption}
+\usepackage{tikz}
+\usetikzlibrary{shapes,arrows}
+\usepackage[RPvoltages]{circuitikz}
+\usepackage{url}
+\usepackage{graphicx}
+\usepackage{subcaption}
+\usepackage[table]{xcolor}
+\usepackage{booktabs}
+
+% Para tabelas longas
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{ragged2e}
+
+\newcolumntype{L}[1]{>{\RaggedRight\arraybackslash}p{#1}}
+
+\usepackage{amsmath}	%permite equações matemáticas
+\usepackage{amsfonts}   %fontes especiais para matemática
+\usepackage{amssymb}    %símbolos especiais para matemática
+
+\usepackage{graphicx}	%permite inclusão de figuras
+%\usepackage{graphpap}   %papel gráfico
+\usepackage[final]{pdfpages}  % Permite incluir PDF pronto no documento
+
+% Define título
+\newcommand{\printprof}{Prof. Dr. Eduardo Noronha de Andrade Freitas}
+\input{trabalho-info}
+
+% Define algumas cores
+\usepackage{color}
+\definecolor{dkgreen}{rgb}{0,0.6,0}
+\definecolor{gray}{rgb}{0.9,0.9,0.9}
+\definecolor{mauve}{rgb}{0.58,0,0.82}
+\definecolor{mylinkcolor}{rgb}{0,0,0}
+
+%permite hyperlink e alterar suas configurações
+\usepackage[pdftex,
+  pdftitle={\printtitle},
+  pdfsubject={\printtitle},
+  pdfauthor={\printauthor},
+  pdfkeywords={trabalho, exemplo, modelo},
+  pdfcreator={Modelo do \printprof},
+  pdfproducer={LaTeX},
+  pdflang=pt-BR,
+  pdfborder={0 0 0},
+  colorlinks=true, urlcolor=mylinkcolor, citecolor=mylinkcolor,
+  anchorcolor=mylinkcolor, linkcolor=mylinkcolor]{hyperref}
+
+%\usepackage{francyvrb} % Verbagin
+\input{listings.tex}
+
+% Margens superiores e esquerda
+\hoffset        = -1.74cm   % Offset da margem esquerda
+\oddsidemargin  = +0.00cm   % Separação da margem esquerda com meio
+\marginparsep   = +0.00cm   % Separação da margem esquerda com fim
+\marginparwidth = +0.00cm   % Simetria da margem esquerda
+\marginparpush  = +0.00cm   % Simetria da margem esquerda
+\voffset        = -1.54cm   % Offset da margem superior
+\topmargin      = +0.00cm   % Espaço superior após a margem
+
+% Cabeçalho e rodapé
+\footskip   = 1.25cm    % Espaço da margem inferior, incluindo rodapé
+\headheight = 3.00cm    % Cabeçalho
+\headsep    = 0.50cm    % Separação entre cabeçalho e texto
+
+% Área do texto útil
+\textheight = 23.15cm   % Altura do texto
+\textwidth  = 19.40cm   % Largura do texto
+\headwidth  = 19.40cm   % Largura do cabeçalho
+
+\usepackage{lastpage}
+\pagestyle{fancy}
+%\lhead{\includegraphics[height=2.5cm]{ifg-imagem-resumida}}
+\lhead{\includegraphics[height=2.5cm]{ifg-resumida}}
+\rhead{
+\textbf{
+    MINISTÉRIO DA EDUCAÇÃO}\\
+    INSTITUTO FEDERAL DE GOIÁS\\
+    \printtitle
+}
+\fancypagestyle{primeira}{
+  \renewcommand{\headrulewidth}{0.0pt}
+  \renewcommand{\footrulewidth}{0.0pt}
+  \footskip   = 0.45cm    % Espaço da margem inferior, incluindo rodapé
+  % \fancyhead{}
+  % \fancyfoot{}
+  \lhead{}
+  \chead{}
+  \rhead{}
+  \lfoot{}
+  \cfoot{}
+  \rfoot{}
+}
+%\rhead{ \textbf{\printprof}}
+%\rhead{}
+%\lfoot{Esquerda do Rodapé}
+\cfoot{\thepage\ de \pageref{LastPage}}
+%\rfoot{Direita do Rodapé}
+\renewcommand{\headrulewidth}{0.50pt}
+\renewcommand{\footrulewidth}{0.5pt}
+
+
+
+\title{
+\vspace{-2em}
+\includegraphics[width=.7\textwidth]{ifg-completa.jpg}
+
+\vspace{1em}
+\printtitle
+\vspace{2cm}
+
+}
+
+\author{
+\printauthor
+\vspace{2cm} \\
+\printprof \\
+\vspace{2cm}
+}
+

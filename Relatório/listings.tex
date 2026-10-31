@@ -1,0 +1,197 @@
+% ============================================================
+% Listings - configuração para códigos-fonte
+% ============================================================
+\usepackage[utf8]{inputenc}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{scrbase}
+\usepackage{float}
+
+% Nome da listagem em português
+\newcaptionname{portuguese}{\lstlistingname}{Código}
+
+% ------------------------------------------------------------
+% Configuração de caracteres especiais
+% ------------------------------------------------------------
+\lstset{
+    inputencoding=utf8,
+    extendedchars=true,
+    literate=
+        {ä}{{\"a}}1
+        {Ä}{{\"A}}1
+        {á}{{\'a}}1
+        {Á}{{\'A}}1
+        {à}{{\`a}}1
+        {À}{{\`A}}1
+        {ã}{{\~a}}1
+        {Ã}{{\~A}}1
+        {â}{{\^a}}1
+        {Â}{{\^A}}1
+        {ë}{{\"e}}1
+        {Ë}{{\"E}}1
+        {é}{{\'e}}1
+        {É}{{\'E}}1
+        {è}{{\`e}}1
+        {È}{{\`E}}1
+        {ê}{{\^e}}1
+        {í}{{\'i}}1
+        {Í}{{\'I}}1
+        {ì}{{\`i}}1
+        {Ì}{{\`I}}1
+        {ç}{{\c{c}}}1
+        {Ç}{{\c{C}}}1
+        {ğ}{{\u{g}}}1
+        {Ğ}{{\u{G}}}1
+        {ö}{{\"o}}1
+        {Ö}{{\"O}}1
+        {ó}{{\'o}}1
+        {Ó}{{\'O}}1
+        {ò}{{\`o}}1
+        {Ò}{{\`O}}1
+        {õ}{{\~o}}1
+        {Õ}{{\~O}}1
+        {ô}{{\^o}}1
+        {Ô}{{\^O}}1
+        {ş}{{\c{s}}}1
+        {Ş}{{\c{S}}}1
+        {ü}{{\"u}}1
+        {Ü}{{\"U}}1
+        {ú}{{\'u}}1
+        {Ú}{{\'U}}1
+        {ù}{{\`u}}1
+        {Ù}{{\`U}}1
+        {Ú}{{\'U}}1
+        {→}{{$\rightarrow$}}1
+        {━}{{-}}1
+}
+
+% ------------------------------------------------------------
+% Cores
+% ------------------------------------------------------------
+\definecolor{codebg}{rgb}{0.94,0.94,0.94}
+\definecolor{codeborder}{rgb}{0.70,0.70,0.70}
+\definecolor{codegreen}{rgb}{0.00,0.50,0.00}
+\definecolor{codeblue}{rgb}{0.00,0.20,0.70}
+\definecolor{codegray}{rgb}{0.40,0.40,0.40}
+\definecolor{codemauve}{rgb}{0.58,0.00,0.82}
+
+% ------------------------------------------------------------
+% Configuração geral
+% ------------------------------------------------------------
+\lstset{
+    basicstyle=\footnotesize\ttfamily,
+    showstringspaces=false,
+    breaklines=true,
+    keepspaces=true,
+    tabsize=4,
+    numbers=left,
+    numberstyle=\tiny\color{codegray},
+    numbersep=5pt,
+    frame=single,
+    rulecolor=\color{codeborder},
+    backgroundcolor=\color{codebg},
+    xleftmargin=6pt,
+    xrightmargin=6pt
+}
+
+% ============================================================
+% Assembly
+% ============================================================
+\lstdefinelanguage[x8051]{Assembler}
+[x86masm]{Assembler}
+{
+    morekeywords={
+        clr, movc, movx, ljmp, sjmp, lcall,
+        cjne, djnz, swap, orl, subb, rl,
+        anl, xch
+    },
+    sensitive=false,
+    deletekeywords={loop,low,dl}
+}
+
+\lstdefinestyle{assembly}{
+    language=[x8051]Assembler,
+    basicstyle=\footnotesize\ttfamily,
+    keywordstyle=\color{codeblue},
+    commentstyle=\color{codegreen},
+    stringstyle=\color{codemauve},
+    backgroundcolor=\color{codebg},
+    frame=single,
+    rulecolor=\color{codeborder},
+    breaklines=true,
+    showstringspaces=false,
+    tabsize=4,
+    numbers=left,
+    numberstyle=\tiny\color{codegray},
+    numbersep=5pt
+}
+
+% ============================================================
+% Python
+% ============================================================
+\lstdefinestyle{python}{
+    language=Python,
+    basicstyle=\scriptsize,
+    keywordstyle=\color{codeblue},
+    stringstyle=\color{codemauve},
+    commentstyle=\color{codegreen}\itshape,
+    backgroundcolor=\color{codebg},
+    frame=single,
+    rulecolor=\color{codeborder},
+    breaklines=true,
+    showstringspaces=false,
+    keepspaces=true,
+    tabsize=4,
+    numbers=left,
+    numberstyle=\tiny\color{codegray},
+    numbersep=5pt,
+    xleftmargin=6pt,
+    xrightmargin=6pt
+}
+
+% ============================================================
+% MicroPython
+% ============================================================
+\lstdefinestyle{micropython}{
+    language=Python,
+    basicstyle=\footnotesize\ttfamily,
+    keywordstyle=\color{codegreen},
+    stringstyle=\color{codeblue},
+    commentstyle=\color{codegray}\itshape,
+    backgroundcolor=\color{codebg},
+    frame=single,
+    rulecolor=\color{codeborder},
+    framerule=0.5pt,
+    breaklines=true,
+    showstringspaces=false,
+    keepspaces=true,
+    tabsize=4,
+    numbers=left,
+    numberstyle=\tiny\color{codegray},
+    numbersep=5pt,
+    xleftmargin=6pt,
+    xrightmargin=6pt
+}
+
+% ============================================================
+% SQL
+% ============================================================
+\lstdefinestyle{sql}{
+    language=SQL,
+    basicstyle=\scriptsize,
+    keywordstyle=\color{codeblue},
+    stringstyle=\color{codemauve},
+    commentstyle=\color{codegreen}\itshape,
+    backgroundcolor=\color{codebg},
+    frame=single,
+    rulecolor=\color{codeborder},
+    breaklines=true,
+    showstringspaces=false,
+    keepspaces=true,
+    tabsize=4,
+    numbers=left,
+    numberstyle=\tiny\color{codegray},
+    numbersep=5pt,
+    xleftmargin=6pt,
+    xrightmargin=6pt
+}
